@@ -2,12 +2,12 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "flask-app"
-        CONTAINER_NAME = "flask-container"
+        IMAGE_NAME = 'flask-app'
+        CONTAINER_NAME = 'flask-app-container'
     }
 
     stages {
-        stage('Clone Repo') {
+        stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/PankajaDesai/flask-app-devops.git'
             }
@@ -15,20 +15,33 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'podman build -t $IMAGE_NAME app/'
+                dir('app') {
+                    sh 'docker build -t $IMAGE_NAME .'
+                }
             }
         }
 
-        stage('Run Container') {
+        stage('Run Docker Container') {
             steps {
+                // Stop and remove old container if exists
                 sh '''
-                podman stop $CONTAINER_NAME || true
-                podman rm $CONTAINER_NAME || true
-                podman run -d -p 5000:5000 --name $CONTAINER_NAME $IMAGE_NAME
+                    if [ $(docker ps -aq -f name=$CONTAINER_NAME) ]; then
+                        docker stop $CONTAINER_NAME || true
+                        docker rm $CONTAINER_NAME || true
+                    fi
                 '''
+
+                // Run new container
+                sh 'docker run -d -p 5000:5000 --name $CONTAINER_NAME $IMAGE_NAME'
             }
         }
     }
-}
 
+    post {
+        failure {
+            echo 'Build failed. Cleaning up...'
+            sh 'docker ps -a'
+        }
+    }
+}
 
