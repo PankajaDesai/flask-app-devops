@@ -1,26 +1,34 @@
 pipeline {
     agent any
 
+    environment {
+        IMAGE_NAME = "flask-app"
+        CONTAINER_NAME = "flask-container"
+    }
+
     stages {
         stage('Clone Repo') {
             steps {
-                git 'https://github.com/PankajaDesai/flask-app-devops.git'
+                git branch: 'main', url: 'https://github.com/PankajaDesai/flask-app-devops.git'
             }
         }
+
         stage('Build Docker Image') {
             steps {
-                script {
-                    dockerImage = docker.build("flask-app-devops:latest")
-                }
+                sh 'podman build -t $IMAGE_NAME app/'
             }
         }
+
         stage('Run Container') {
             steps {
-                script {
-                    docker.image("flask-app-devops:latest").run('-d -p 5000:5000')
-                }
+                sh '''
+                podman stop $CONTAINER_NAME || true
+                podman rm $CONTAINER_NAME || true
+                podman run -d -p 5000:5000 --name $CONTAINER_NAME $IMAGE_NAME
+                '''
             }
         }
     }
 }
+
 
